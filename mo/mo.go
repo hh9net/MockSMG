@@ -1,4 +1,9 @@
-package main
+// mo packge
+
+// 连接SP server
+// 提交 状态报告 和 上行短信
+
+package mo
 
 import (
 	"bufio"
@@ -14,10 +19,11 @@ import (
 
 var serial uint32 = 0
 
-func main() {
+// 通过 pipe 与 mt packge 传递短信Head
+func Run(pipe <-chan sgip.Head) {
 	conn, err := net.Dial("tcp", "127.0.0.1:8002")
 	if err != nil {
-		log.Println("Dail SP error: ", err)
+		log.Fatal("Dail SP error: ", err)
 	}
 
 	// 接收响应
@@ -27,7 +33,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Scanln()
+	// 接收head 发送回执状态
+	for head := range pipe {
+		fmt.Println(head)
+	}
 }
 
 // 接收响应

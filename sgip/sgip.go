@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"time"
 )
 
 // Command ID
@@ -199,4 +200,40 @@ func Response(conn net.Conn, head Head, code uint8) error {
 	resp.Result = code
 
 	return binary.Write(conn, binary.BigEndian, &resp)
+}
+
+// 登陆SP
+func BindSP(conn net.Conn) error {
+	//  TODO 登陆SP
+
+	bind := Bind{}
+	copy(bind.Name[:], []byte("10690090"))
+	copy(bind.Password[:], []byte("kjhhhg"))
+	bind.Type = 2
+
+	head := Head{}
+	head.CMD = SGIP_BIND
+	head.Seq1 = 3020092008
+	head.Seq2 = getTimeStamp()
+	head.Seq3 = getSerial()
+	head.MsgLen = SGIP_BIND_LEN
+
+	err := binary.Write(conn, binary.BigEndian, &head)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(conn, binary.BigEndian, &bind)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func getTimeStamp() uint32 {
+	t := time.Now()
+	return uint32(int(t.Month())*100000000 + t.Day()*1000000 + t.Hour()*10000 + t.Minute()*100 + t.Second())
+}
+
+func getSerial() uint32 {
+	return 1
 }

@@ -1,4 +1,8 @@
-package main
+// mt package
+// 接收sp请求, 返回resp
+// 将submit 请求的 head 通过pipe 传递给mo返回提交状态
+
+package mt
 
 import (
 	"bufio"
@@ -11,11 +15,7 @@ import (
 	. "github.com/yedamao/MockSMG/sgip"
 )
 
-var serial uint32 = 0
-
-func main() {
-	setupMO()
-
+func Run(pipe chan<- Head) {
 	ln, err := net.Listen("tcp", ":8801")
 	if err != nil {
 		log.Fatal("Listen 8801 error: ", err)
@@ -28,22 +28,7 @@ func main() {
 		if err != nil {
 			log.Println("Accept error: ", err)
 		}
-		go handleSPCli(conn)
-	}
-}
-
-func setupMO() {
-	conn, err := net.Dial("tcp", "127.0.0.1:8002")
-	if err != nil {
-		log.Println("Dail SP error: ", err)
-	}
-	log.Println("connetct to 127.0.0.1:8002 ...")
-
-	// 接收响应
-	go recvResp(conn)
-
-	if err := BindSP(conn); err != nil {
-		log.Fatal(err)
+		go handleSPCli(conn, pipe)
 	}
 }
 
@@ -75,7 +60,7 @@ func recvResp(conn net.Conn) {
 }
 
 // 处理sp请求
-func handleSPCli(conn net.Conn) {
+func handleSPCli(conn net.Conn, pipe chan<- Head) {
 	defer conn.Close()
 
 	buf := bufio.NewReader(conn)
@@ -126,6 +111,8 @@ func handleSPCli(conn net.Conn) {
 
 			// 返回响应
 			go goResp(conn, head, SUCC)
+			// 传递 head给mo 返回状态报告
+			pipe <- head
 
 		default:
 			log.Println("CMD not found: ", head.CMD)
