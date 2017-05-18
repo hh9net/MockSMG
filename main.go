@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"io"
 	"log"
+	"math/rand"
 	"net"
+	"time"
 
 	. "github.com/yedamao/MockSMG/sgip"
 )
@@ -75,10 +77,9 @@ func handleSPCli(conn net.Conn) {
 
 			log.Println(string(submit.SPNumber[:16]))
 
-			err = Response(conn, head, SUCC)
-			if err != nil {
-				log.Println("submit write resp error: ", err)
-			}
+			// 返回响应
+			go goResp(conn, head, SUCC)
+
 		default:
 			log.Println("CMD not found: ", head.CMD)
 		}
@@ -89,4 +90,12 @@ func handleSPCli(conn net.Conn) {
 func loginCheck(bind Bind) bool {
 	// ToDo
 	return true
+}
+
+func goResp(conn net.Conn, head Head, result int) {
+	time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+	err := Response(conn, head, SUCC)
+	if err != nil {
+		log.Println("submit write resp error: ", err)
+	}
 }
