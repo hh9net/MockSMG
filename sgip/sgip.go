@@ -1,4 +1,13 @@
-package main
+// 联通网关相关
+
+package sgip
+
+import (
+	"encoding/binary"
+	"errors"
+	"io"
+	"net"
+)
 
 // Command ID
 const (
@@ -57,6 +66,7 @@ const (
 const (
 	SGIP_HEAD_LEN = 20
 	SGIP_REP_LEN  = SGIP_HEAD_LEN + 9
+	SGIP_BIND_LEN = SGIP_HEAD_LEN + 41
 )
 
 type Head struct {
@@ -71,7 +81,7 @@ type Head struct {
 }
 
 type Bind struct {
-	Type     uint8    // 登录类型
+	Type     uint8    // 登录类型 1 sp -> SMG, 2 SMG -> SP
 	Name     [16]byte // 登陆名
 	Password [16]byte // 密码
 	Reverse  [8]byte  // 保留，扩展用
@@ -104,4 +114,89 @@ type Resp struct {
 	Header  Head
 	Result  uint8   // Bind执行命令是否成功
 	Reverse [8]byte // 保留，扩展用
+}
+
+// SMG用Deliver命令向SP发送一条MO短消息
+type Deliver struct {
+	UserNumber    [21]byte // 接收该短消息的手机号
+	SPNumber      [21]byte // SP的接入号码
+	TP_pid        uint8    // GSM协议类型
+	TP_udhi       uint8    // GSM协议类型
+	MessageCoding uint8    // 短消息的编码格式
+	MessageLength uint32   // 短消息的长度
+	// MessageContent
+	// Reverse
+}
+
+// Report命令用于向SP发送一条先前的Submit命令的当前状态
+type Report struct {
+	SubmitSequenceNumber [3]uint32
+	ReportType           uint8
+	UserNumber           [21]byte // 接收该短消息的手机号
+	State                uint8    // 0：发送成功 1：等待发送 2：发送失败
+	ErrorCode            uint8    // 当State=2时为错误码值，否则为0
+	Reserve              [8]byte
+}
+
+func ParseBind(buf io.Reader) (Bind, error) {
+	var bind Bind
+
+	err := binary.Read(buf, binary.BigEndian, &bind)
+	if err != nil {
+		return bind, err
+	}
+	return bind, nil
+}
+
+func ParseHeader(buf io.Reader) (Head, error) {
+	var header Head
+
+	err := binary.Read(buf, binary.BigEndian, &header)
+	if err != nil {
+		return header, err
+	}
+
+	return header, nil
+}
+
+func ParseSubmit(buf io.Reader, Total_len uint32) (Submit, error) {
+	var submit Submit
+	if err := binary.Read(buf, binary.BigEndian, &submit); err != nil {
+		return submit, err
+	}
+
+	// parse msg
+	msg := make([]byte, submit.MessageLength)
+	if err := binary.Read(buf, binary.BigEndian, msg); err != nil {
+		return submit, errors.New("parse msg error: " + err.Error())
+	}
+
+	reverse := make([]byte, 8)
+	if err := binary.Read(buf, binary.BigEndian, reverse); err != nil {
+		return submit, errors.New("parse reverse error: " + err.Error())
+	}
+
+	return submit, nil
+}
+
+func ParseResp(buf io.Reader) (Resp, error) {
+	var resp Resp
+
+	err := binary.Read(buf, binary.BigEndian, &resp)
+	if err != nil {
+		return resp, err
+	}
+	return resp, err
+}
+
+// 返回应答包
+func Response(conn net.Conn, head Head, code uint8) error {
+	// 返回响应状态
+	var resp Resp
+	resp.Header = head
+	resp.Header.MsgLen = SGIP_REP_LEN
+	resp.Header.CMD += 0x80000000
+	resp.Result = code
+
+	return binary.Write(conn, binary.BigEndian, &resp)
 }
