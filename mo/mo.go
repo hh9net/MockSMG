@@ -25,6 +25,7 @@ func Run(pipe <-chan sgip.Head) {
 	if err != nil {
 		log.Fatal("Dail SP error: ", err)
 	}
+	log.Println("MO connect to 127.0.0.1:8002 succ")
 
 	// 接收响应
 	go recvResp(conn)
@@ -35,7 +36,12 @@ func Run(pipe <-chan sgip.Head) {
 
 	// 接收head 发送回执状态
 	for head := range pipe {
+		time.Sleep(time.Second)
 		fmt.Println(head)
+		err := sgip.SubmitReport(conn, head)
+		if err != nil {
+			log.Println("send report error: ", err)
+		}
 	}
 }
 

@@ -21,7 +21,7 @@ func Run(pipe chan<- Head) {
 		log.Fatal("Listen 8801 error: ", err)
 	}
 	defer ln.Close()
-	log.Println("Listen 8801  .....")
+	log.Println("MT Listen 8801  .....")
 
 	for {
 		conn, err := ln.Accept()
@@ -97,7 +97,6 @@ func handleSPCli(conn net.Conn, pipe chan<- Head) {
 
 			log.Println("login success")
 
-		// 登陆包
 		case SGIP_SUBMIT:
 			log.Println("下发包")
 
