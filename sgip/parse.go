@@ -5,7 +5,10 @@ package sgip
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"github.com/yedamao/MockSMG/common"
 	"io"
+	"log"
 )
 
 func ParseHeader(buf io.Reader) (Head, error) {
@@ -16,6 +19,7 @@ func ParseHeader(buf io.Reader) (Head, error) {
 		return header, err
 	}
 
+	log.Println(header)
 	return header, nil
 }
 
@@ -40,6 +44,8 @@ func ParseSubmit(buf io.Reader, Total_len uint32) (Submit, error) {
 	if err := binary.Read(buf, binary.BigEndian, msg); err != nil {
 		return submit, errors.New("parse msg error: " + err.Error())
 	}
+	msg, _ = common.Decodegbk(msg)
+	fmt.Println(string(msg))
 
 	reverse := make([]byte, 8)
 	if err := binary.Read(buf, binary.BigEndian, reverse); err != nil {

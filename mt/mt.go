@@ -86,6 +86,8 @@ func handleSPCli(conn net.Conn, pipe chan<- Head) {
 				log.Println("parse bind pkg error: ", err)
 				return
 			}
+			log.Println(string(bind.Name[:len(bind.Name)]))
+			log.Println(string(bind.Password[:len(bind.Password)]))
 
 			// to do  校验用户
 			loginCheck(bind)
