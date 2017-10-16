@@ -21,19 +21,40 @@ var serial uint32 = 0
 
 // 通过 pipe 与 mt packge 传递短信Head
 func Run(pipe <-chan sgip.Head) {
-	conn, err := net.Dial("tcp", "127.0.0.1:8002")
-	if err != nil {
-		log.Fatal("Dail SP error: ", err)
+	errCh := make(chan error)
+
+	for {
+		conn, err := net.Dial("tcp", "127.0.0.1:8002")
+		if err != nil {
+			time.Sleep(time.Second)
+			continue // retry
+		}
+		log.Println("MO connect to 127.0.0.1:8002 succ")
+
+		log.Println("create MO conn recvResp goroutine...")
+		// 接收响应
+		go recvResp(conn, errCh)
+
+		log.Println("bind MO conn to SP server...")
+		if err := bindSP(conn); err != nil {
+			log.Fatal(err)
+		}
+
+		log.Println("create MO conn sendReport goroutine...")
+		// 发送report
+		go sendReport(conn, pipe)
+
+		err = <-errCh
+		if err != nil {
+			log.Println("conn error: ", err)
+			log.Println("retry connect....")
+		}
+
 	}
-	log.Println("MO connect to 127.0.0.1:8002 succ")
 
-	// 接收响应
-	go recvResp(conn)
+}
 
-	if err := bindSP(conn); err != nil {
-		log.Fatal(err)
-	}
-
+func sendReport(conn net.Conn, pipe <-chan sgip.Head) {
 	// 接收head 发送回执状态
 	for head := range pipe {
 		time.Sleep(time.Second)
@@ -41,12 +62,14 @@ func Run(pipe <-chan sgip.Head) {
 		err := sgip.SubmitReport(conn, head)
 		if err != nil {
 			log.Println("send report error: ", err)
+			return
 		}
 	}
+
 }
 
 // 接收响应
-func recvResp(conn net.Conn) {
+func recvResp(conn net.Conn, errCh chan<- error) {
 	buf := bufio.NewReader(conn)
 	log.Println("recv routine running")
 
@@ -56,6 +79,7 @@ func recvResp(conn net.Conn) {
 		if err != nil {
 			if io.EOF == err {
 				log.Println("EOF return", err)
+				errCh <- err
 				return
 			}
 
